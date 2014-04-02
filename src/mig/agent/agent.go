@@ -463,6 +463,7 @@ func keepAliveAgent(ctx Context) (err error) {
 		Name:      ctx.Agent.Hostname,
 		OS:        ctx.Agent.OS,
 		Version:   version,
+		PID:       os.Getpid(),
 		QueueLoc:  ctx.Agent.QueueLoc,
 		StartTime: time.Now(),
 	}

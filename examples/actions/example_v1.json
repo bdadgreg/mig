@@ -109,12 +109,22 @@
         {
             "module": "process",
             "parameters": {
-                "look for running process that belongs to rootkit (not implemented)": [
+                "look for running process that belongs to rootkits": [
                     "/usr/libexec/rootkitd",
                     "/opt/rootkit/stealth_dangerous"
                 ]
             }
+        },
+        {
+            "module": "pidkill",
+            "parameters": {
+                "kill some processes identified by their PIDs": [
+                    12345,
+                    35217
+                ]
+            }
         }
+
     ],
     "syntaxversion": 1
 }

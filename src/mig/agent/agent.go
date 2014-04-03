@@ -47,6 +47,7 @@ import (
 	"mig"
 	"mig/modules/connected"
 	"mig/modules/filechecker"
+	"mig/modules/pidkill"
 	"mig/modules/upgrade"
 	"mig/pgp"
 	"os"
@@ -131,6 +132,9 @@ func runModuleDirectly(mode string, args []byte) (err error) {
 		os.Exit(0)
 	case "filechecker":
 		fmt.Println(filechecker.Run(args))
+		os.Exit(0)
+	case "pidkill":
+		fmt.Println(pidkill.Run(args))
 		os.Exit(0)
 	case "upgrade":
 		fmt.Println(upgrade.Run(args))
@@ -299,7 +303,7 @@ func parseCommands(ctx Context, msg []byte) (err error) {
 
 		// pass the module operation object to the proper channel
 		switch operation.Module {
-		case "connected", "filechecker", "upgrade":
+		case "connected", "filechecker", "upgrade", "pidkill":
 			// send the operation to the module
 			ctx.Channels.RunAgentCommand <- currentOp
 			opsCounter++

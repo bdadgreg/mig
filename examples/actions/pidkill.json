@@ -1,0 +1,20 @@
+{
+    "Name": "Kill a specific PID",
+    "Description": {
+        "Author": "Julien Vehent",
+        "Email": "jvehent@mozilla.com",
+        "Revision": 201404031300
+    },
+    "Target": "linux",
+    "Operations": [
+        {
+            "Module": "pidkill",
+            "Parameters": {
+                "Kill some PID": [
+                    4892
+                ]
+            }
+        }
+    ],
+    "SyntaxVersion": 1
+}

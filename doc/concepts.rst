@@ -223,7 +223,7 @@ security in mind. The flow diagram below presents a high-level view:
 		  |                   |    7.register     |                   |                   |
 		  |                   |<--------------------------------------|                   |
 		  |                   |                   |                   |                   |
-		  |                   |    8.terminate    |                   |                   |
+		  |                   |    8.kill         |                   |                   |
 		  |                   |------------------>|                   |                   |
 		  |                   |                   |                   |                   |
 		  |                   |   9.acknowledge   |                   |                   |
@@ -241,39 +241,51 @@ security in mind. The flow diagram below presents a high-level view:
 		  |                   |  13.acknowledge   |                   |                   |
 		  |                   |<--------------------------------------|                   |
 
-All upgrade operations are initiated by an investigator (1). The upgrade
-by an action that calls the upgrade module with the following parameters:
+All upgrade operations are initiated by an investigator (1). The upgrade is
+triggered by an action to the upgrade module with the following parameters:
 
 .. code:: json
 
-	{
-		"to_version": "b9536d2-201403031435",
-		"location":	"https://download.mig.example.net/mig-agent-b9536d2-201403031435",
-		"checksum": "c59d4eaeac728671c635ff645014e2afa935bebffdb5fbd207ffdeab"
-	}
+    "Operations": [
+        {
+            "Module": "upgrade",
+            "Parameters": {
+                "linux/amd64": {
+                    "to_version": "16eb58b-201404021544",
+                    "location": "http://localhost/mig/bin/linux/amd64/mig-agent",
+                    "checksum": "31fccc576635a29e0a27bbf7416d4f32a0ebaee892475e14708641c0a3620b03"
+                }
+            }
+        }
+    ],
 
+* Each OS family and architecture have their own parameters (ex: "linux/amd64",
+  "darwin/amd64", "windows/386", ...). Then, in each OS/Arch group, we have:
 * to_version is the version an agent should upgrade to
 * location points to a HTTPS address that contains the agent binary
-* checksum is a hash of the agent binary, that will be verified after download
+* checksum is a SHA256 hash of the agent binary to be verified after download
 
 The parameters above are signed using a standard PGP action signature.
 
 The upgrade action is forwarded to agents (2) like any other action. The action
 signature is verified by the agent (3), and the upgrade module is called. The
-module downloads the new binary (4), and verifies the version and checksum (5).
+module downloads the new binary (4), verifies the version and checksum (5) and
+installs itself on the system.
 
-Assuming everything checks in, the agent execute the binary of the new agent (6).
-At that point, two agents are running on the same machine, and the rest of the
-protocol is designed to shut down the old agent, and clean up.
+Assuming everything checks in, the old agent executes the binary of the new
+agent (6). At that point, two agents are running on the same machine, and the
+rest of the protocol is designed to shut down the old agent, and clean up.
 
-The freshly started agent starts by, like all agents, registering with the
-scheduler (7). This tells the schedule that two agents are running on the same
-node, and one of them must terminate. The scheduler sends a terminate order (8)
-to the agent with the oldest version number. The old agent acknowledge and shuts
-down (9). On reception of the acknowledgement, the scheduler sends an action for
-the new agent to check for the PID of the old agent (10). If no PID is found in
-the results (11), the scheduler tells the new agent to remove the binary of the
-old agent (12). When the agent acknowledge (13), the upgrade protocol is done.
+After executing the new agent, the old agent returns a successful result to the
+scheduler, and includes its own PID in the results.
+The new agent starts by registering with the scheduler (7). This tells the
+scheduler that two agents are running on the same node, and one of them must
+terminate. The scheduler sends a kill action to both agents with the PID of the
+old agent (8). The kill action may be executed twice, but that doesn't matter.
+When the scheduler receives the kill results (9), it sends a new action to check
+for `mig-agent` processes (10). Only one should be found in the results (11),
+and if that is the case, the scheduler tells the agent to remove the binary of
+the old agent (12). When the agent returns (13), the upgrade protocol is done.
 
 If the PID of the old agent lingers on the system, an error is logged for the
 investigator to decide what to do next. The scheduler does not attempt to clean

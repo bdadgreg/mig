@@ -47,7 +47,6 @@ import (
 	"mig"
 	"mig/modules/connected"
 	"mig/modules/filechecker"
-	"mig/pgp"
 	"os"
 	"os/exec"
 	"strings"
@@ -245,25 +244,14 @@ func parseCommands(ctx Context, msg []byte) (err error) {
 		panic(err)
 	}
 
-	// get an io.Reader from the public pgp key
-	keyring, keycount, err := pgp.ArmoredPubKeysToKeyring(PUBLICPGPKEYS[0:])
+	// verify the PGP signature of the action, and verify that
+	// the signer is authorized to perform this action
+	isAuthorized, err := checkActionAuthorization(cmd.Action, ctx)
 	if err != nil {
 		panic(err)
 	}
-	ctx.Channels.Log <- mig.Log{CommandID: cmd.ID, ActionID: cmd.Action.ID, Desc: fmt.Sprintf("loaded %d keys", keycount)}.Debug()
-
-	// Check the action syntax and signature
-	err = cmd.Action.Validate()
-	if err != nil {
-		desc := fmt.Sprintf("action validation failed: %v", err)
-		ctx.Channels.Log <- mig.Log{CommandID: cmd.ID, ActionID: cmd.Action.ID, Desc: desc}.Err()
-		panic(desc)
-	}
-	err = cmd.Action.VerifySignature(keyring)
-	if err != nil {
-		desc := fmt.Sprintf("action signature verification failed: %v", err)
-		ctx.Channels.Log <- mig.Log{CommandID: cmd.ID, ActionID: cmd.Action.ID, Desc: desc}.Err()
-		panic(desc)
+	if !isAuthorized {
+		panic("Action is not authorized")
 	}
 
 	// Expiration is verified by the Validate() call above, but we need

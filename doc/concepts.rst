@@ -113,13 +113,12 @@ The parameters are:
 Upon generation, additional fields are appended to the action:
 
 * PGPSignature: all of the parameters above are concatenated into a string and
-  signed with the investigator's private GPG key. The signature is part of the
+  signed with the investigators private GPG key. The signature is part of the
   action, and used by agents to verify that an action comes from a trusted
-  investigator.
-* PGPSignatureDate: is the date of the PGP signature, used as a timestamp of
-  the action creation.
+  investigator. `PGPSignature` is an array that contains one or more signature
+  from authorized investigators. 
 * ValidFrom and ExpireAt: two dates that constrains the validity of the action
-  to a time window.
+  to a UTC time window.
 
 Actions files are submitted to the API or the Scheduler directly. Eventually,
 the PGP signature will be verified by intermediary components, and in any case
@@ -185,6 +184,88 @@ and thus "FoundAnything" returned "false.
 While the result is negative, the command itself has succeeded. Had a failure
 happened on the agent, the scheduler would have been notified and the status
 would be one of "failed", "timeout" or "cancelled".
+
+Access Control Lists
+--------------------
+
+Not all keys can perform all actions. The scheduler, for example, sometimes need
+to issue specific actions to agents (such as during the upgrade protocol) but
+shouldn't be able to perform more dangerous actions. This is enforced by
+Access Control Lists, or ACLs, stored on the agents. An ACL describes who can
+access what function of which module. It can be used to require multiple
+signatures on specific actions, and limit the list of investigators allowed to
+perform an action.
+
+ACLs are JSON documents that are currently hardwired into the agent, but will be
+shipped dynamically to agents in the future (via an ACL module).
+
+Below is an example of ACL for the `filechecker` module:
+
+.. code:: json
+
+	{
+		"filechecker": {
+			"requiredsignatures": 1,
+			"authoritativesigners": [
+				"E60892BB9BD89A69F759A1A0A3D652173B763E8F"
+			]
+		}
+	}
+
+`authoritativesigners` contains the PGP fingerprint of the public key of an
+investigator. When an agent receives an action that calls the filechecker
+module, it will first verify the signature of the action, and then validates
+that the signer is authorized to perform the action.
+
+The global ACL `all` can be used as a default for all modules. It has the
+following syntax:
+
+.. code:: json
+
+	{
+		"all": {
+			"requiredsignatures": 1,
+			"authoritativesigners": [
+				"E60892BB9BD...",
+				"9F759A1A0A3...",
+				"A69F759A1A0..."
+			]
+		}
+	}
+
+The `all` ACL is overridden by module specific ACLs.
+
+If a module requires multiple signatures, the `nonauthoritativesigners`
+attribute can be used to list investigators that can sign, but which signature
+isn't sufficient to launch the action. In addition, the attribute
+`requiredauthoritativesigners` controls how many signatures from
+`authoritativesigners` are required. If `requiredauthoritativesigners` is set to
+0, and `requiredsignatures` is set to 2, then two `nonauthoritativesigners` can
+sign and launch an action on this module without the approval of an
+`authoritativesigners`.
+
+.. code:: json
+
+   {
+		"firewall": {
+			"requiredsignatures": 2,
+			"requiredauthoritativesigners": 0
+			"authoritativesigners": [
+				"E60892BB9BD...",
+				"9F759A1A0A3...",
+				"A69F759A1A0..."
+			],
+			"nonauthoritativesigners": [
+				"2FC05413E11...",
+				"8AD5956347F..."
+			}
+		}
+	}
+
+ACL are currently applied to modules. In the future, ACLs should have finer
+control to authorize access to specific functions of a module. For example, an
+investigator could be authorized to call the `regex` function of filechecker
+module, but only in `/etc`.
 
 Agent registration process
 --------------------------
